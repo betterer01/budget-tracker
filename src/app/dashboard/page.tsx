@@ -34,7 +34,7 @@ export default function Dashboard() {
     setPlannedIncome(plans.filter(p => p.type === 'income').reduce((a: number, p: { planned_amount: number }) => a + p.planned_amount, 0))
     setPlannedExpense(plans.filter(p => p.type === 'expense').reduce((a: number, p: { planned_amount: number }) => a + p.planned_amount, 0))
 
-    // Last 6 months history
+    // History: only months that have data (plan or transactions)
     const history = []
     for (let i = 5; i >= 0; i--) {
       const d = subMonths(now, i)
@@ -46,7 +46,10 @@ export default function Dashboard() {
       ])
       const income = (planData.data || []).filter(p => p.type === 'income').reduce((a, p) => a + p.planned_amount, 0)
       const expense = (txData.data || []).filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0)
-      history.push({ month: format(d, 'MMM', { locale: ru }), income, expense })
+      // Only add months that have actual data
+      if (income > 0 || expense > 0) {
+        history.push({ month: format(d, 'MMM', { locale: ru }), income, expense })
+      }
     }
     setMonthlyHistory(history)
     setLoading(false)
