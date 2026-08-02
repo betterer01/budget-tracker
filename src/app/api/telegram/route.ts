@@ -78,6 +78,9 @@ if (!message) return NextResponse.json({ ok: true })
 const chatId = message.chat.id
 const userId = message.from?.id
 
+// Ignore messages from bots to prevent infinite loops
+if (message.from?.is_bot) return NextResponse.json({ ok: true })
+
 if (ALLOWED_USERS.length > 0 && !ALLOWED_USERS.includes(userId)) {
   await sendMessage(chatId, '❌ Доступ запрещён')
   return NextResponse.json({ ok: true })
