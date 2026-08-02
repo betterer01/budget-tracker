@@ -21,32 +21,37 @@ export default function Dashboard() {
     const start = startOfMonth(now).toISOString().split('T')[0]
     const end = endOfMonth(now).toISOString().split('T')[0]
 
-    const [txRes, catRes, planRes] = await Promise.all([
+    const [txRes, catRes, planRes, planItemsRes] = await Promise.all([
       supabase.from('budget_transactions').select('*, budget_categories(*)').gte('date', start).lte('date', end).order('date', { ascending: false }),
       supabase.from('budget_categories').select('*').order('sort_order'),
       supabase.from('budget_plan_items').select('*').eq('year', now.getFullYear()).eq('month', now.getMonth() + 1),
+      supabase.from('budget_plan_items').select('*, budget_categories(*)').eq('year', now.getFullYear()).eq('month', now.getMonth() + 1).eq('type', 'expense'),
     ])
 
     setTransactions(txRes.data || [])
     setCategories(catRes.data || [])
+    setPlanItems(planItemsRes.data || [])
 
     const plans = planRes.data || []
     setPlannedIncome(plans.filter(p => p.type === 'income').reduce((a: number, p: { planned_amount: number }) => a + p.planned_amount, 0))
     setPlannedExpense(plans.filter(p => p.type === 'expense').reduce((a: number, p: { planned_amount: number }) => a + p.planned_amount, 0))
 
-    // History: only months that have data (plan or transactions)
+    // History: load all 6 months in 2 queries instead of 12
+    const sixMonthsAgo = startOfMonth(subMonths(now, 5)).toISOString().split('T')[0]
+    const [allTxData, allPlanData] = await Promise.all([
+      supabase.from('budget_transactions').select('amount,type,date').gte('date', sixMonthsAgo).lte('date', end),
+      supabase.from('budget_plan_items').select('planned_amount,type,year,month'),
+    ])
+
     const history = []
     for (let i = 5; i >= 0; i--) {
       const d = subMonths(now, i)
       const s = startOfMonth(d).toISOString().split('T')[0]
       const e = endOfMonth(d).toISOString().split('T')[0]
-      const [txData, planData] = await Promise.all([
-        supabase.from('budget_transactions').select('amount,type').gte('date', s).lte('date', e),
-        supabase.from('budget_plan_items').select('planned_amount,type').eq('year', d.getFullYear()).eq('month', d.getMonth() + 1),
-      ])
-      const income = (planData.data || []).filter(p => p.type === 'income').reduce((a, p) => a + p.planned_amount, 0)
-      const expense = (txData.data || []).filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0)
-      // Only add months that have actual data
+      const yr = d.getFullYear()
+      const mo = d.getMonth() + 1
+      const income = (allPlanData.data || []).filter(p => p.type === 'income' && p.year === yr && p.month === mo).reduce((a, p) => a + p.planned_amount, 0)
+      const expense = (allTxData.data || []).filter(t => t.type === 'expense' && t.date >= s && t.date <= e).reduce((a, t) => a + t.amount, 0)
       if (income > 0 || expense > 0) {
         history.push({ month: format(d, 'MMM', { locale: ru }), income, expense })
       }
@@ -76,13 +81,7 @@ export default function Dashboard() {
   const dailyRate = dayOfMonth > 0 ? totalExpense / dayOfMonth : 0
   const predictedTotal = dailyRate * daysInMonth
 
-  // Plan vs fact for expense categories
   const [planItems, setPlanItems] = useState<{ category_id: string | null; planned_amount: number; name: string; budget_categories?: Category }[]>([])
-  
-  useEffect(() => {
-    supabase.from('budget_plan_items').select('*, budget_categories(*)').eq('year', now.getFullYear()).eq('month', now.getMonth() + 1).eq('type', 'expense')
-      .then(({ data }) => setPlanItems(data || []))
-  }, [])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: '#7a8499' }}>
