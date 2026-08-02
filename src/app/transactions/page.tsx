@@ -12,6 +12,7 @@ export default function Transactions() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [receiptProcessing, setReceiptProcessing] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
@@ -45,6 +46,14 @@ export default function Transactions() {
     })
     setForm({ type: 'expense', amount: '', category_id: '', description: '', merchant: '', date: new Date().toISOString().split('T')[0] })
     setShowForm(false)
+    load()
+  }
+
+  const deleteTransaction = async (id: string) => {
+    if (!confirm('Удалить транзакцию?')) return
+    setDeleting(id)
+    await supabase.from('budget_transactions').delete().eq('id', id)
+    setDeleting(null)
     load()
   }
 
@@ -170,11 +179,27 @@ export default function Transactions() {
                   </div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: tx.type === 'income' ? '#22c55e' : '#ef4444', fontFamily: 'JetBrains Mono, monospace' }}>
-                  {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)} ₸
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: tx.type === 'income' ? '#22c55e' : '#ef4444', fontFamily: 'JetBrains Mono, monospace' }}>
+                    {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)} ₸
+                  </div>
+                  <div style={{ fontSize: 11, color: '#7a8499' }}>{tx.budget_categories?.name}</div>
                 </div>
-                <div style={{ fontSize: 11, color: '#7a8499' }}>{tx.budget_categories?.name}</div>
+                <button
+                  onClick={() => deleteTransaction(tx.id)}
+                  disabled={deleting === tx.id}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: deleting === tx.id ? '#4a5568' : '#4a5568',
+                    fontSize: 18, padding: '4px', lineHeight: 1,
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#4a5568')}
+                >
+                  {deleting === tx.id ? '...' : '×'}
+                </button>
               </div>
             </div>
           ))
