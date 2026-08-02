@@ -1,5 +1,3 @@
-
-Budget page · TXT
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, Category, Obligation } from '@/lib/supabase'
