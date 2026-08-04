@@ -26,7 +26,7 @@ async function getFile(fileId: string): Promise<string> {
 }
 
 // Fast text parser — no AI needed
-function parseTextInput(text: string, categories: { id: string; name: string; type: string }[]) {
+function parseTextInput(text: string, categories: { id: string; name: string; type: string; icon: string; color: string; is_fixed: boolean; sort_order: number }[]) {
   // Format: "1500 продукты Магнум" or "1500 продукты" or "продукты 1500"
   const numMatch = text.match(/(\d[\d\s]*(?:[.,]\d+)?)/)
   if (!numMatch) return null
